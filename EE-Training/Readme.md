@@ -29,11 +29,11 @@ Total of **195 energy consumption experiments** - 14 **models**, **epochs** (50,
 
 | Model                    | Epochs           | Datasets               | Batch Sizes     |
 |-------------------------|------------------|------------------------|-----------------|
-| convnext_tiny           | [100]            | [cifar10]              | [64, 128]       |
-| deit_base_patch16_224   | [100]            | [cifar10]              | [64, 128]       |
+| convnext_tiny           | [50, 75, 100]             | [cifar10, cifar100]              | [32, 64, 128]       |
+| deit_base_patch16_224   | [50, 75, 100]             | [cifar10, cifar100]              | [32, 64, 128]       |
 | efficientnet_b0         | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
 | efficientnet_b3         | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
-| efficientnetv2_s        | [50, 75, 100]    | [cifar10]              | [32, 64, 128]   |
+| efficientnetv2_s        | [50, 75, 100]    | [cifar10, cifar100]              | [32, 64, 128]   |
 | mobilenetv2_100         | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
 | mobilenetv3_large_100   | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
 | mobilenetv3_small_100   | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
@@ -42,7 +42,7 @@ Total of **195 energy consumption experiments** - 14 **models**, **epochs** (50,
 | resnet18                | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
 | resnet34                | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
 | resnet50                | [50, 75, 100]    | [cifar10, cifar100]    | [32, 64, 128]   |
-| vit_base_patch16_224    | [100]            | [cifar10]              | [64, 128]       |
+| vit_base_patch16_224    | [50, 75, 100]             | [cifar10, cifar100]              | [32, 64, 128]       |
 
 
 > Full experiment logs `Dataset/image_classification/training_energy.csv`.
