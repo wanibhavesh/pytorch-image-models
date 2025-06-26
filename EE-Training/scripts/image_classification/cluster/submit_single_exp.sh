@@ -15,7 +15,14 @@ DATASET=$2
 EPOCHS=$3
 BS=$4
 GPU=$5
-EXP_NAME="escade_${MODEL}_ep${EPOCHS}_bs${BS}"
+DATA_PERCENT=${6:-1.0}  # Default to 1.0 if not provided
+
+if (( $(echo "$DATA_PERCENT < 1.0" | bc -l) )); then
+    EXP_NAME="escade_${MODEL}_ep${EPOCHS}_bs${BS}_data$(echo "$DATA_PERCENT * 100" | bc | cut -d. -f1)pct"
+else
+    EXP_NAME="escade_${MODEL}_ep${EPOCHS}_bs${BS}"
+fi
+
 GPU_LOG="/netscratch/bwani/pytorch-image-models/EE-Training/evaluation/${GPU}/dcgm_logs/${EXP_NAME}.csv"
 
 
@@ -24,7 +31,7 @@ bash EE-Training/scripts/image_classification/cluster/gpu_logger.sh "$GPU_LOG" &
 LOGGER_PID=$!
 
 # === Execute the training script with parameters ===
-./install.sh python EE-Training/scripts/image_classification/cluster/run_train_exp_ecoai_single.py "$1" "$2" "$3" "$4" "$5"
+./install.sh python EE-Training/scripts/image_classification/cluster/run_train_exp_ecoai_single.py "$1" "$2" "$3" "$4" "$5" "$DATA_PERCENT"
 
 # === Stop GPU logger ===
 kill $LOGGER_PID
