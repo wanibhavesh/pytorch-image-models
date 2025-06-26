@@ -14,13 +14,16 @@ model = sys.argv[1]
 dataset_name = sys.argv[2]
 epochs = int(sys.argv[3])
 batch_size = int(sys.argv[4])
+gpus = sys.argv[5]
+data_percent = float(sys.argv[6]) if len(sys.argv) > 6 else 1.0
 
 # dataset_flag = "torch/image_folder"
 dataset_flag = "torch/msgpack"
 
-
-gpus = sys.argv[5]
-experiment_name = f"{model}_{dataset_name}_{epochs}ep_bs{batch_size}"
+if data_percent < 1.0:
+    experiment_name = f"{model}_{dataset_name}_{epochs}ep_bs{batch_size}_data{int(data_percent*100)}pct"
+else:
+    experiment_name = f"{model}_{dataset_name}_{epochs}ep_bs{batch_size}"
 
 
 # === Paths === 
@@ -53,7 +56,7 @@ tracker = Tracker(
 # === Start training ===
 tracker.start()
 try:
-    subprocess.run([
+    train_args = [
         "python", train_script,
         "--model", model,
         "--dataset", dataset_flag,
@@ -66,7 +69,13 @@ try:
         "--amp",
         "--workers", "8",
         "--pin-mem"
-    ])
+    ]
+    
+    # Add data percentage argument if less than 1.0
+    if data_percent < 1.0:
+        train_args.extend(["--data-percent", str(data_percent)])
+    
+    subprocess.run(train_args)
 finally:
     tracker.stop()
 

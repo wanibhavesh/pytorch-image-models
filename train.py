@@ -33,7 +33,7 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
+from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset, SubsetDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
@@ -105,6 +105,8 @@ group.add_argument('--target-key', default=None, type=str,
                    help='Dataset key for target labels.')
 group.add_argument('--dataset-trust-remote-code', action='store_true', default=False,
                    help='Allow huggingface dataset import to execute code downloaded from the dataset\'s repo.')
+group.add_argument('--data-percent', type=float, default=1.0, metavar='PCT',
+                   help='Percentage of training data to use (0.0 to 1.0, default: 1.0 for full dataset)')
 
 # Model parameters
 group = parser.add_argument_group('Model parameters')
@@ -417,6 +419,10 @@ def _parse_args():
 def main():
     utils.setup_default_logging()
     args, args_text = _parse_args()
+    
+    # Validate data_percent argument
+    if not (0.0 < args.data_percent <= 1.0):
+        raise ValueError(f"--data-percent must be between 0.0 and 1.0, got {args.data_percent}")
 
     if args.device_modules:
         for module in args.device_modules:
@@ -684,6 +690,12 @@ def main():
             num_samples=args.val_num_samples,
             trust_remote_code=args.dataset_trust_remote_code,
         )
+
+    # apply dataset subsetting if data_percent < 1.0
+    if args.data_percent < 1.0:
+        if utils.is_primary(args):
+            _logger.info(f'Applying dataset subsetting: using {args.data_percent*100:.1f}% of training data')
+        dataset_train = SubsetDataset(dataset_train, data_percent=args.data_percent, seed=args.seed)
 
     # setup mixup / cutmix
     collate_fn = None
