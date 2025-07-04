@@ -692,10 +692,12 @@ def main():
         )
 
     # apply dataset subsetting if data_percent < 1.0
+    use_subset = False
     if args.data_percent < 1.0:
         if utils.is_primary(args):
             _logger.info(f'Applying dataset subsetting: using {args.data_percent*100:.1f}% of training data')
         dataset_train = SubsetDataset(dataset_train, data_percent=args.data_percent, seed=args.seed)
+        use_subset = True
 
     # setup mixup / cutmix
     collate_fn = None
@@ -726,6 +728,11 @@ def main():
     train_interpolation = args.train_interpolation
     if args.no_aug or not train_interpolation:
         train_interpolation = data_config['interpolation']
+    # Disable prefetcher when using SubsetDataset to avoid fast_collate issues
+    use_prefetcher = args.prefetcher and not use_subset
+    if use_subset and args.prefetcher and utils.is_primary(args):
+        _logger.info('Disabling prefetcher due to SubsetDataset usage to avoid collation issues')
+    
     loader_train = create_loader(
         dataset_train,
         input_size=data_config['input_size'],
@@ -757,7 +764,7 @@ def main():
         pin_memory=args.pin_mem,
         img_dtype=model_dtype or torch.float32,
         device=device,
-        use_prefetcher=args.prefetcher,
+        use_prefetcher=use_prefetcher,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
     )
