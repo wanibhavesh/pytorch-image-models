@@ -54,4 +54,36 @@ class SubsetDataset(data.Dataset):
     def __getattr__(self, name):
         # Delegate attribute access to the original dataset
         # This allows the wrapper to be transparent for other dataset methods
-        return getattr(self.dataset, name) 
+        if 'dataset' in self.__dict__:
+            return getattr(self.dataset, name)
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+    
+    @property
+    def transform(self):
+        """Get transform from the wrapped dataset"""
+        return getattr(self.dataset, 'transform', None)
+    
+    @transform.setter
+    def transform(self, value):
+        """Set transform on the wrapped dataset"""
+        self.dataset.transform = value
+    
+    @property
+    def target_transform(self):
+        """Get target_transform from the wrapped dataset"""
+        return getattr(self.dataset, 'target_transform', None)
+    
+    @target_transform.setter
+    def target_transform(self, value):
+        """Set target_transform on the wrapped dataset"""
+        self.dataset.target_transform = value
+    
+    def __getstate__(self):
+        """Custom pickling to handle multiprocessing"""
+        state = self.__dict__.copy()
+        return state
+    
+    def __setstate__(self, state):
+        """Custom unpickling to handle multiprocessing"""
+        self.__dict__.update(state) 
