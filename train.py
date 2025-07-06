@@ -1068,6 +1068,7 @@ def train_one_epoch(
         data_time_m.update(accum_steps * (time.time() - data_start_time))
 
         def _forward():
+            nonlocal input  # Declare at the top of the function
             with amp_autocast():
                 # Add error handling for device/dtype mismatches
                 try:
@@ -1077,8 +1078,6 @@ def train_one_epoch(
                     if "Input type" in str(e) and "weight type" in str(e):
                         # Handle device/dtype mismatch by moving input to correct device/dtype
                         _logger.warning(f"Device/dtype mismatch detected, correcting: {e}")
-                        # Use nonlocal to modify the input variable in the outer scope
-                        nonlocal input
                         input = input.to(device=device, dtype=model_dtype if model_dtype else torch.float32)
                         output = model(input)
                         loss = loss_fn(output, target)
