@@ -704,6 +704,13 @@ def main():
         indices = random.sample(range(original_length), subset_length)
         dataset_train = torch.utils.data.Subset(dataset_train, indices)
         
+        # Disable prefetcher when using subset datasets to avoid fast_collate issues
+        if args.prefetcher:
+            if utils.is_primary(args):
+                _logger.info('Disabling prefetcher for subset datasets to avoid fast_collate issues')
+            args.prefetcher = False
+            args.no_prefetcher = True  # Ensure consistency
+        
         if utils.is_primary(args):
             _logger.info(f'Using {subset_length}/{original_length} samples ({args.data_percent*100:.1f}%)')
 
