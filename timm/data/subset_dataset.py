@@ -4,10 +4,11 @@ Wrapper to use only a percentage of a dataset by randomly sampling indices.
 """
 import random
 import torch.utils.data as data
+from torch.utils.data import Subset
 from typing import Optional
 
 
-class SubsetDataset(data.Dataset):
+class SubsetDataset(Subset):
     """
     Dataset wrapper that uses only a random subset of the original dataset.
     
@@ -29,36 +30,19 @@ class SubsetDataset(data.Dataset):
     ):
         assert 0.0 < data_percent <= 1.0, f"data_percent must be between 0.0 and 1.0, got {data_percent}"
         
-        super().__init__()
-        self.dataset = dataset
-        self.data_percent = data_percent
-        
         # Calculate number of samples to use
         original_length = len(dataset)
-        self.subset_length = int(original_length * data_percent)
+        subset_length = int(original_length * data_percent)
         
         # Randomly sample indices
         random.seed(seed)
         all_indices = list(range(original_length))
-        self.sampled_indices = sorted(random.sample(all_indices, self.subset_length))
+        sampled_indices = sorted(random.sample(all_indices, subset_length))
         
-        # Copy essential attributes from the original dataset for transparency
-        self._copy_dataset_attributes()
+        # Initialize the parent Subset class with dataset and indices
+        super().__init__(dataset, sampled_indices)
         
-        print(f"SubsetDataset: Using {self.subset_length}/{original_length} samples ({data_percent*100:.1f}%)")
-    
-    def _copy_dataset_attributes(self):
-        """Copy essential attributes from the original dataset"""
-        essential_attrs = ['transform', 'target_transform', 'root', 'samples', 'targets', 'classes', 'class_to_idx']
+        # Store for reference
+        self.data_percent = data_percent
         
-        for attr in essential_attrs:
-            if hasattr(self.dataset, attr):
-                setattr(self, attr, getattr(self.dataset, attr))
-    
-    def __getitem__(self, index):
-        # Map subset index to original dataset index and delegate
-        original_index = self.sampled_indices[index]
-        return self.dataset[original_index]
-    
-    def __len__(self):
-        return self.subset_length 
+        print(f"SubsetDataset: Using {subset_length}/{original_length} samples ({data_percent*100:.1f}%)") 
