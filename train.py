@@ -675,6 +675,22 @@ def main():
         trust_remote_code=args.dataset_trust_remote_code,
     )
 
+    # Apply dataset subsetting if data_percent < 1.0
+    if args.data_percent < 1.0:
+        if utils.is_primary(args):
+            _logger.info(f'Applying dataset subsetting: using {args.data_percent*100:.1f}% of training data')
+        
+        original_length = len(dataset_train)
+        subset_length = int(original_length * args.data_percent)
+        
+        # Simplest approach: monkey-patch the dataset's __len__ method
+        # This avoids Subset entirely and just limits how many samples are used
+        original_len_method = dataset_train.__len__
+        dataset_train.__len__ = lambda: subset_length
+        
+        if utils.is_primary(args):
+            _logger.info(f'Using first {subset_length}/{original_length} samples ({args.data_percent*100:.1f}%)')
+
     if args.val_split:
         dataset_eval = create_dataset(
             args.dataset,
@@ -690,29 +706,6 @@ def main():
             num_samples=args.val_num_samples,
             trust_remote_code=args.dataset_trust_remote_code,
         )
-
-    # apply dataset subsetting if data_percent < 1.0
-    if args.data_percent < 1.0:
-        if utils.is_primary(args):
-            _logger.info(f'Applying dataset subsetting: using {args.data_percent*100:.1f}% of training data')
-        
-        # Use PyTorch's built-in Subset with random indices
-        import random
-        random.seed(args.seed)
-        original_length = len(dataset_train)
-        subset_length = int(original_length * args.data_percent)
-        indices = random.sample(range(original_length), subset_length)
-        dataset_train = torch.utils.data.Subset(dataset_train, indices)
-        
-        # Disable prefetcher when using subset datasets to avoid fast_collate issues
-        if args.prefetcher:
-            if utils.is_primary(args):
-                _logger.info('Disabling prefetcher for subset datasets to avoid fast_collate issues')
-            args.prefetcher = False
-            args.no_prefetcher = True  # Ensure consistency
-        
-        if utils.is_primary(args):
-            _logger.info(f'Using {subset_length}/{original_length} samples ({args.data_percent*100:.1f}%)')
 
     # setup mixup / cutmix
     collate_fn = None
