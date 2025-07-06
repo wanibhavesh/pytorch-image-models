@@ -29,6 +29,7 @@ class SubsetDataset(data.Dataset):
     ):
         assert 0.0 < data_percent <= 1.0, f"data_percent must be between 0.0 and 1.0, got {data_percent}"
         
+        super().__init__()
         self.dataset = dataset
         self.data_percent = data_percent
         
@@ -41,49 +42,23 @@ class SubsetDataset(data.Dataset):
         all_indices = list(range(original_length))
         self.sampled_indices = sorted(random.sample(all_indices, self.subset_length))
         
+        # Copy essential attributes from the original dataset for transparency
+        self._copy_dataset_attributes()
+        
         print(f"SubsetDataset: Using {self.subset_length}/{original_length} samples ({data_percent*100:.1f}%)")
     
+    def _copy_dataset_attributes(self):
+        """Copy essential attributes from the original dataset"""
+        essential_attrs = ['transform', 'target_transform', 'root', 'samples', 'targets', 'classes', 'class_to_idx']
+        
+        for attr in essential_attrs:
+            if hasattr(self.dataset, attr):
+                setattr(self, attr, getattr(self.dataset, attr))
+    
     def __getitem__(self, index):
-        # Map subset index to original dataset index
+        # Map subset index to original dataset index and delegate
         original_index = self.sampled_indices[index]
         return self.dataset[original_index]
     
     def __len__(self):
-        return self.subset_length
-    
-    def __getattr__(self, name):
-        # Delegate attribute access to the original dataset
-        # This allows the wrapper to be transparent for other dataset methods
-        if 'dataset' in self.__dict__:
-            return getattr(self.dataset, name)
-        else:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-    
-    @property
-    def transform(self):
-        """Get transform from the wrapped dataset"""
-        return getattr(self.dataset, 'transform', None)
-    
-    @transform.setter
-    def transform(self, value):
-        """Set transform on the wrapped dataset"""
-        self.dataset.transform = value
-    
-    @property
-    def target_transform(self):
-        """Get target_transform from the wrapped dataset"""
-        return getattr(self.dataset, 'target_transform', None)
-    
-    @target_transform.setter
-    def target_transform(self, value):
-        """Set target_transform on the wrapped dataset"""
-        self.dataset.target_transform = value
-    
-    def __getstate__(self):
-        """Custom pickling to handle multiprocessing"""
-        state = self.__dict__.copy()
-        return state
-    
-    def __setstate__(self, state):
-        """Custom unpickling to handle multiprocessing"""
-        self.__dict__.update(state) 
+        return self.subset_length 

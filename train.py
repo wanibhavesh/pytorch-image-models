@@ -728,10 +728,6 @@ def main():
     train_interpolation = args.train_interpolation
     if args.no_aug or not train_interpolation:
         train_interpolation = data_config['interpolation']
-    # Disable prefetcher when using SubsetDataset to avoid fast_collate issues
-    use_prefetcher = args.prefetcher and not use_subset
-    if use_subset and args.prefetcher and utils.is_primary(args):
-        _logger.info('Disabling prefetcher due to SubsetDataset usage to avoid collation issues')
     
     loader_train = create_loader(
         dataset_train,
@@ -764,7 +760,7 @@ def main():
         pin_memory=args.pin_mem,
         img_dtype=model_dtype or torch.float32,
         device=device,
-        use_prefetcher=use_prefetcher,
+        use_prefetcher=args.prefetcher,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
     )
@@ -1058,6 +1054,13 @@ def train_one_epoch(
             input, target = input.to(device=device, dtype=model_dtype), target.to(device=device)
             if mixup_fn is not None:
                 input, target = mixup_fn(input, target)
+        else:
+            # When prefetcher is enabled, data should already be on correct device/dtype
+            # Add debug logging in case of device/dtype mismatch
+            if hasattr(input, 'device') and input.device.type != device.type:
+                _logger.warning(f"Device mismatch: input on {input.device}, expected {device}")
+            if hasattr(input, 'dtype') and model_dtype is not None and input.dtype != model_dtype:
+                _logger.warning(f"Dtype mismatch: input dtype {input.dtype}, model dtype {model_dtype}")
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
@@ -1066,8 +1069,21 @@ def train_one_epoch(
 
         def _forward():
             with amp_autocast():
-                output = model(input)
-                loss = loss_fn(output, target)
+                # Add error handling for device/dtype mismatches
+                try:
+                    output = model(input)
+                    loss = loss_fn(output, target)
+                except RuntimeError as e:
+                    if "Input type" in str(e) and "weight type" in str(e):
+                        # Handle device/dtype mismatch by moving input to correct device/dtype
+                        _logger.warning(f"Device/dtype mismatch detected, correcting: {e}")
+                        # Use nonlocal to modify the input variable in the outer scope
+                        nonlocal input
+                        input = input.to(device=device, dtype=model_dtype if model_dtype else torch.float32)
+                        output = model(input)
+                        loss = loss_fn(output, target)
+                    else:
+                        raise e
             if accum_steps > 1:
                 loss /= accum_steps
             return loss
