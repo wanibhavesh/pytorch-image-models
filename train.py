@@ -33,7 +33,7 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset, SubsetDataset
+from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
@@ -692,12 +692,20 @@ def main():
         )
 
     # apply dataset subsetting if data_percent < 1.0
-    use_subset = False
     if args.data_percent < 1.0:
         if utils.is_primary(args):
             _logger.info(f'Applying dataset subsetting: using {args.data_percent*100:.1f}% of training data')
-        dataset_train = SubsetDataset(dataset_train, data_percent=args.data_percent, seed=args.seed)
-        use_subset = True
+        
+        # Use PyTorch's built-in Subset with random indices
+        import random
+        random.seed(args.seed)
+        original_length = len(dataset_train)
+        subset_length = int(original_length * args.data_percent)
+        indices = random.sample(range(original_length), subset_length)
+        dataset_train = torch.utils.data.Subset(dataset_train, indices)
+        
+        if utils.is_primary(args):
+            _logger.info(f'Using {subset_length}/{original_length} samples ({args.data_percent*100:.1f}%)')
 
     # setup mixup / cutmix
     collate_fn = None
